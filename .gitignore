@@ -1,0 +1,22 @@
+# Node.js
+node_modules/
+.env
+build/
+dist/
+
+# React
+*.log
+.DS_Store
+*.env
+.vscode/
+
+# Go
+*.exe
+*.out
+*.test
+*.log
+*.env
+uploads/
+shop-backend/.idea/
+shop-backend/.vscode/
+shop-backend/uploads/
