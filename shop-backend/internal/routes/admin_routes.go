@@ -22,4 +22,6 @@ func RegisterAdminRoutes(r *mux.Router, h *handler.AdminHandler) {
 	protected.HandleFunc("/products", h.CreateProduct).Methods("POST")
 	protected.HandleFunc("/products/{id}", h.UpdateProduct).Methods("PUT")
 	protected.HandleFunc("/products/{id}", h.DeleteProduct).Methods("DELETE")
+
+	protected.HandleFunc("/kits", h.CreateKit).Methods("POST")
 }

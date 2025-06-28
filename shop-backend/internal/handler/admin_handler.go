@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"shop-backend/config"
@@ -19,10 +20,14 @@ import (
 
 type AdminHandler struct {
 	productService *service.ProductService
+	kitService     *service.KitService
 }
 
-func NewAdminHandler(productService *service.ProductService) *AdminHandler {
-	return &AdminHandler{productService: productService}
+func NewAdminHandler(productService *service.ProductService, kitService *service.KitService) *AdminHandler {
+	return &AdminHandler{
+		productService: productService,
+		kitService:     kitService,
+	}
 }
 
 func (h *AdminHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
@@ -251,4 +256,79 @@ func (h *AdminHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	w.Write([]byte("Product deleted"))
+}
+
+func (h *AdminHandler) CreateKit(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart from for image and fields
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	// Extract form values
+	name := r.FormValue("name")
+	description := r.FormValue("description")
+	priceStr := r.FormValue("price")
+	productIDsRaw := r.FormValue("product_ids") // this will be multiple string values
+	productIDsStr := strings.Split(productIDsRaw, ",")
+
+	// convert price to float64
+	price, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil {
+		http.Error(w, "Failed to extract kit image", http.StatusBadRequest)
+		return
+	}
+
+	// convert product_ids to ObjecIDs
+	var productIDs []primitive.ObjectID
+	for _, idStr := range productIDsStr {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue // skip empty str
+		}
+		id, err := primitive.ObjectIDFromHex(idStr)
+		if err != nil {
+			http.Error(w, "Invalid product ID:"+idStr, http.StatusBadRequest)
+			return
+		}
+		productIDs = append(productIDs, id)
+	}
+
+	// Handle image file upload
+	imagePath := ""
+	file, handler, err := r.FormFile("image")
+	if err != nil {
+		defer file.Close()
+		os.MkdirAll("uploads/kits", os.ModePerm)
+		imagePath = "uploads/kits/" + handler.Filename
+
+		dst, err := os.Create(imagePath)
+		if err != nil {
+			http.Error(w, "Failed to save image", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		io.Copy(dst, file)
+	}
+
+	// Create Kit model
+	kit := &model.Kit{
+		Name:        name,
+		Description: description,
+		ProductIDs:  productIDs,
+		Price:       price,
+		ImageURL:    imagePath,
+	}
+
+	// Call service
+	err = h.kitService.CreateKit(r.Context(), kit)
+	if err != nil {
+		http.Error(w, "Failed to create kit", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Kit created"))
+
 }

@@ -20,14 +20,16 @@ func NewServer(cfg *config.Config) *http.Server {
 	// Dependency Injection
 	userRepo := repository.NewUserRepository(db)
 	productRepo := repository.NewProductRepository(db)
+	kitRepo := repository.NewKitRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 
 	authService := service.NewAuthService(userRepo, cfg)
 	productService := service.NewProductService(productRepo)
+	kitService := service.NewKitService(kitRepo)
 	orderService := service.NewOrderService(orderRepo)
 
 	userHandler := handler.NewUserHandler(authService, productService, orderService)
-	adminHandler := handler.NewAdminHandler(productService)
+	adminHandler := handler.NewAdminHandler(productService, kitService)
 
 	router := mux.NewRouter()
 
